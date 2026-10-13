@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>代購團｜線上填單</title>
+<style>
+  /* 主色：SJ 應援色 Pearl Sapphire Blue（珍珠藍寶石） */
+  :root{
+    --bg:#f3f6fb; --card:#fff; --ink:#1c2436; --muted:#6b7488; --line:#dfe5ef;
+    --accent:#1f4fa3; --accent-deep:#14377a; --accent-soft:#e8effa;
+    --pearl:linear-gradient(135deg,#fdfeff 0%,#e3ebf8 35%,#f7f9fd 55%,#d6e2f5 100%);
+    --ok:#2f8f5b; --err:#c0392b; --warn:#b7791f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;line-height:1.6;padding-bottom:84px}
+  a{color:var(--accent)}
+  .wrap{max-width:760px;margin:0 auto;padding:20px 16px 32px}
+  header.hero{background:var(--pearl);border:1px solid #d3ddef;border-radius:18px;padding:22px 20px;margin-bottom:12px;position:relative;overflow:hidden}
+  header.hero::after{content:"";position:absolute;right:-40px;top:-40px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,#ffffffcc,#ffffff00 70%)}
+  header.hero h1{margin:0;font-size:1.6rem;color:var(--accent-deep);letter-spacing:.5px}
+  header.hero p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+  .nav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 6px}
+  .nav button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 6px;font:inherit;font-weight:600;cursor:pointer;color:var(--ink)}
+  .nav button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .announce{background:#fff;border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:12px;padding:14px 16px;margin:14px 0}
+  .announce h2{margin:0 0 6px;font-size:1.02rem;color:var(--accent-deep)}
+  .announce ol{margin:0;padding-left:1.3em;font-size:.92rem}
+  .announce li{margin:3px 0}
+  .cutoff{display:inline-block;background:var(--accent);color:#fff;border-radius:999px;padding:2px 12px;font-size:.85rem;font-weight:600;white-space:nowrap}
+  .desc{background:var(--accent-soft);border-radius:12px;padding:12px 14px;margin:12px 0;font-size:.92rem;white-space:pre-line}
+  .desc b{display:block;color:var(--accent-deep);margin-bottom:2px}
+  .gtabs{display:flex;gap:10px;overflow-x:auto;margin:14px 0 4px;padding-bottom:4px}
+  .gtab{flex:0 0 auto;border:2px solid var(--line);background:#fff;border-radius:12px;padding:8px 14px;cursor:pointer;font:inherit;text-align:left;color:var(--ink)}
+  .gtab small{display:block;color:var(--muted);font-size:.78rem}
+  .gtab.on{border-color:var(--accent);background:var(--accent-soft)}
+  .ghead{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:14px 0 4px}
+  .ghead h2{margin:0;font-size:1.3rem}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 14px;cursor:pointer;font:inherit;font-size:.88rem;color:var(--ink)}
+  .chip.on{background:var(--accent-deep);color:#fff;border-color:var(--accent-deep)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+  @media (max-width:380px){.grid{grid-template-columns:1fr 1fr}.prod .body{padding:10px}}
+  .prod{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+  .prod .img{aspect-ratio:1/1;background:#eaeff7 center/cover no-repeat;display:flex;align-items:center;justify-content:center;color:#b9c4d8;font-size:2.4rem}
+  .prod .body{padding:12px 14px;display:flex;flex-direction:column;gap:4px;flex:1}
+  .prod h3{margin:0;font-size:1rem}
+  .prod .price{color:var(--accent);font-weight:700}
+  .prod .note{color:var(--muted);font-size:.82rem}
+  .tag{display:inline-block;font-size:.75rem;background:#eef1f7;border-radius:6px;padding:0 6px;color:var(--muted)}
+  .opts{margin-top:auto;padding-top:6px}
+  .opt{display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-top:1px dashed var(--line)}
+  .opt:first-child{border-top:0}
+  .step{display:flex;align-items:center;gap:6px}
+  .step button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:1.05rem;cursor:pointer;color:var(--accent-deep)}
+  .step button:disabled{opacity:.35;cursor:default}
+  .step span{min-width:20px;text-align:center;font-weight:700}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin:18px 0}
+  .card h2{font-size:1.05rem;margin:0 0 10px}
+  label{display:block;font-size:.9rem;margin:10px 0 4px;font-weight:600}
+  label .req{color:var(--accent)}
+  input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff;color:var(--ink)}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  textarea{min-height:70px;resize:vertical}
+  .contact{display:grid;grid-template-columns:120px 1fr;gap:8px}
+  .check{display:flex;gap:8px;align-items:flex-start;font-weight:400}
+  .check input{width:auto;margin-top:5px}
+  .hp{position:absolute;left:-9999px}
+  .summary{width:100%;border-collapse:collapse;font-size:.92rem}
+  .summary td{padding:6px 0;border-bottom:1px solid var(--line)}
+  .summary td:last-child{text-align:right;white-space:nowrap}
+  .summary tr.total td{font-weight:700;border-bottom:0;color:var(--accent)}
+  .empty{color:var(--muted);font-size:.9rem}
+  .btn{border:0;border-radius:10px;padding:12px 16px;font:inherit;cursor:pointer;font-weight:700}
+  .btn.primary{width:100%;background:var(--accent);color:#fff;font-size:1.05rem;padding:14px;margin-top:14px}
+  .btn.primary:hover{background:var(--accent-deep)}
+  .btn.primary:disabled{opacity:.6;cursor:wait}
+  .btn.link{background:#fff;color:var(--ok);border:1px solid currentColor;margin-top:10px;padding:8px 14px}
+  .bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:10px 16px;display:flex;justify-content:center}
+  .bar .in{max-width:760px;width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .bar .btn{background:var(--accent);color:#fff}
+  .msg{border-radius:12px;padding:14px;margin-top:14px;display:none;white-space:pre-line}
+  .msg.ok{display:block;background:#e9f6ef;color:var(--ok)}
+  .msg.err{display:block;background:#fbeaea;color:var(--err)}
+  .state{text-align:center;color:var(--muted);padding:60px 0}
+  .demo{background:#fff6d6;border-radius:10px;padding:8px 12px;font-size:.85rem;margin-bottom:12px}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:.92rem;margin-bottom:10px}
+  .kv dt{color:var(--muted)} .kv dd{margin:0}
+  .badge{display:inline-block;padding:1px 10px;border-radius:999px;font-size:.8rem;font-weight:700;background:#eceff5;color:var(--ink);margin-right:6px}
+  .badge.ok{background:#e1f3e8;color:var(--ok)} .badge.wait{background:#fdf1d8;color:var(--warn)} .badge.no{background:#fbeaea;color:var(--err)}
+  .pay{background:var(--accent-soft);border-radius:10px;padding:10px 12px;font-size:.92rem;white-space:pre-line;margin-bottom:6px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  /* 品項總覽圖 */
+  .poster{margin:12px 0;background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px;cursor:zoom-in;position:relative}
+  .poster img{display:block;width:100%;height:auto;border-radius:10px}
+  .poster .hint{position:absolute;right:16px;bottom:16px;background:#1c2436cc;color:#fff;font-size:.78rem;border-radius:999px;padding:3px 10px}
+  .lightbox{position:fixed;inset:0;background:#0b1020ee;z-index:50;overflow:auto;display:none;-webkit-overflow-scrolling:touch}
+  .lightbox.on{display:block}
+  .lightbox img{display:block;width:100%;max-width:1100px;margin:0 auto;cursor:zoom-in}
+  .lightbox.zoom img{width:200%;max-width:none;cursor:zoom-out}
+  .lightbox .close{position:fixed;top:12px;right:12px;width:40px;height:40px;border-radius:50%;border:0;background:#fff;font-size:1.3rem;cursor:pointer;z-index:51}
+  .lightbox .tip{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);color:#fff;background:#0008;border-radius:999px;padding:4px 12px;font-size:.8rem;z-index:51}
+  /* 沒有個別商品圖時：改用精簡清單 */
+  .grid.list{grid-template-columns:1fr;gap:10px}
+  .grid.list .prod .body{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:start}
+  .grid.list .prod .opts{grid-column:1 / -1;margin-top:4px;padding-top:4px;border-top:1px solid var(--line)}
+  .grid.list .prod .info{display:flex;flex-direction:column;gap:2px}
+  .grid.list .prod .price{text-align:right;white-space:nowrap}
+  .ocard{border:1px solid var(--line);border-radius:14px;padding:16px;margin:14px 0;background:#fff}
+  .ocard h3{margin:0 0 6px;font-size:1.02rem}
+  .ocard .sub{border-top:1px dashed var(--line);margin-top:12px;padding-top:10px}
+  @media (max-width:420px){.row2{grid-template-columns:1fr}.contact{grid-template-columns:100px 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="state">載入中…</div></div>
+
+<script>
+/* ====== 設定區：只要改這裡 ====== */
+const CONFIG = {
+  // 部署 Apps Script 後拿到的網址（結尾是 /exec）
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbxw5amycuToS4RsIVXAoQOxc7N2bllx9SS9CE4F6YDKGVXAc4L7mSn7E9AQAAK_t7qM/exec',
+  // 網站副標
+  SUBTITLE: '因為自己想買所以大家就一起買吧╰(*°▽°*)╯',
+  // 團務公告（所有團通用），一行一點
+  ANNOUNCE: [
+    '團務皆不含國際運費、稅金與台灣境內運，需二補相關費用。',
+    '為響應環保，若手邊有保持良好的紙箱或包材，會重複利用。',
+    '所有團務皆須先匯款才會進行購入作業，填單送出後會提供匯款帳號。',
+    '出貨方式統一開立 7-11 賣貨便賣場。',
+    '訂單填寫送出後除因缺貨未購買到外，請勿隨意取消，亦不接受缺A pass B。',
+    '國際運輸商品皆默認廠損，若有輕微盒損、小卡廠損皆不屬於售後範圍，介意者請勿下單。'
+  ],
+  // 聯絡方式選項
+  PLATFORMS: ['LINE', 'Threads', 'IG'],
+  // 出貨方式（統一）
+  SHIPPING: '7-11 賣貨便'
+};
+/* 團、截單日、商品等，全部在 Google 試算表裡改，不用動這個檔案
+   分享某一團的專屬連結：網址後面加 ?g=團代碼，例如 .../order/?g=CON26
+   分享查詢・匯款回報頁：網址後面加 ?page=check
+   品項總覽圖：在試算表「團」分頁的「總覽圖網址」欄貼上圖片連結（Google 雲端分享連結也可以） */
+/* ============================== */
+
+const DEMO = !/\/exec$/.test(CONFIG.GAS_URL) || CONFIG.GAS_URL.includes('請貼上');
+const DEMO_DATA = {
+  ok: true,
+  site: { title: '日韓代購團' },
+  groups: [
+    { code: 'CON26', title: '🇰🇷 2026 演唱會周邊代購', cutoff: '2026/10/31', open: true, desc: '・價格已含代購費\n・預計 12 月初到台' },
+    { code: 'JP1105', title: '🇯🇵 日本藥妝零食團', cutoff: '2026/11/05', open: true, desc: '・11 月中寄出\n・缺貨會全額退款' }
+  ],
+  products: [
+    { group: 'CON26', id: 'A01', name: '應援手燈', category: '應援', specs: [], price: 1450, image: '', limit: 2, desc: '官方手燈 ver.2' },
+    { group: 'CON26', id: 'A02', name: '巡演 T-shirt', category: '服飾', specs: ['S','M','L','XL'], price: 990, image: '', limit: 0, desc: '黑色款' },
+    { group: 'CON26', id: 'A03', name: '拍立得小卡組', category: '小卡', specs: [], price: 450, image: '', limit: 3, desc: '隨機 5 張' },
+    { group: 'JP1105', id: 'B01', name: '合利他命 EX Plus 270錠', category: '藥妝', specs: [], price: 1380, image: '', limit: 2, desc: '' },
+    { group: 'JP1105', id: 'B02', name: '東京香蕉 8 入', category: '零食', specs: [], price: 420, image: '', limit: 0, desc: '' }
+  ]
+};
+const demoOrders = [];
+
+let DATA = null, gcode = '', cat = '全部', page = 'order', lastLookup = null;
+const carts = {}; // 每團各自的購物車：carts[團代碼]['商品編號|規格'] = 數量
+const cart = () => (carts[gcode] = carts[gcode] || {});
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => 'NT$ ' + Number(n || 0).toLocaleString();
+const group = () => DATA.groups.find(g => g.code === gcode);
+const products = () => DATA.products.filter(p => p.group === gcode);
+const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const TOTAL_NOTE = '合計（不含國際運費、稅金與境內運，需二補）';
+
+function setUrl(params){
+  try { history.replaceState(null, '', '?' + new URLSearchParams(params).toString()); } catch (e) {}
+}
+
+// Google 雲端硬碟的分享連結轉成可顯示的圖片網址
+function imgUrl(u, w = 600){
+  if (!u) return '';
+  const m = u.match(/\/d\/([\w-]{20,})/) || u.match(/[?&]id=([\w-]{20,})/);
+  if (u.includes('drive.google.com') && m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w${w}`;
+  return u;
+}
+
+// 呼叫 Apps Script（用 text/plain 送出，避免瀏覽器跨網域預檢被 Google 擋下）
+async function api(payload){
+  if (DEMO) return demoApi(payload);
+  const res = await fetch(CONFIG.GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
+  return res.json();
+}
+
+function demoApi(p){
+  const norm = s => String(s || '').trim().toLowerCase().replace(/^@+/, '');
+  if (!p.action){
+    const total = cartLines().reduce((s, l) => s + l.subtotal, 0);
+    const id = gcode + '-' + String(demoOrders.filter(o => o.id.startsWith(gcode)).length + 1).padStart(3, '0');
+    demoOrders.unshift({ id, group: group().title, time: '2026/10/13 20:15', total, account: norm(p.account), phone: p.phone,
+      items: cartLines().map(l => ({ name: l.p.name, spec: l.spec, qty: l.qty, subtotal: l.subtotal })),
+      pickup: CONFIG.SHIPPING, pickupDetail: '', status: '待確認', payStatus: '未付款',
+      last5: '', reportAmount: 0, reportDate: '', tracking: '' });
+    return { ok: true, orderId: id, total, payment: '（預覽模式）銀行代碼 000　帳號 12345678' };
+  }
+  const mine = demoOrders.filter(o => o.account === norm(p.account) && o.phone === p.phone);
+  if (!mine.length) return { ok: false, error: '查不到訂單（預覽模式請先下一筆單再查詢）' };
+  if (p.action === 'report'){
+    const o = mine.find(x => x.id === p.orderId);
+    Object.assign(o, { payStatus: '已回報，待對帳', last5: p.last5, reportAmount: Number(p.amount), reportDate: p.date.replace(/-/g, '/') });
+  }
+  return { ok: true, orders: mine.map(o => ({ ...o })), payment: '（預覽模式）銀行代碼 000　帳號 12345678' };
+}
+
+async function load(){
+  try {
+    DATA = DEMO ? DEMO_DATA : await (await fetch(CONFIG.GAS_URL)).json();
+    if (!DATA.ok) throw new Error(DATA.error);
+    if (!DATA.site || !Array.isArray(DATA.groups))
+      throw new Error('Apps Script 還是舊版程式：請貼上新版 Code.gs，並以「新版本」重新部署');
+    render();
+  } catch (e) {
+    $('#app').innerHTML = `<div class="state">載入失敗，請稍後重新整理。<br><small>${esc(e.message)}</small></div>`;
+  }
+}
+
+/* ================= 外框與頁面切換 ================= */
+function render(){
+  document.title = DATA.site.title + '｜線上填單';
+  $('#app').innerHTML = `
+    ${DEMO ? '<div class="demo">目前是預覽模式（尚未設定 GAS_URL），顯示的是範例資料，送出不會真的寫入。</div>' : ''}
+    <header class="hero"><h1>💙 ${esc(DATA.site.title)}</h1>${CONFIG.SUBTITLE ? `<p>${esc(CONFIG.SUBTITLE)}</p>` : ''}</header>
+    <div class="nav">
+      <button type="button" data-page="order">🛍️ 我要下單</button>
+      <button type="button" data-page="check">🔍 查詢訂單・匯款回報</button>
+    </div>
+    <div id="orderPage"></div>
+    <div id="checkPage" hidden></div>`;
+  document.querySelectorAll('.nav button').forEach(b => b.onclick = () => showPage(b.dataset.page));
+  renderOrderPage();
+  renderCheckPage();
+  const q = new URLSearchParams(location.search);
+  showPage(q.get('page') === 'check' ? 'check' : 'order');
+}
+
+function showPage(p, prefill){
+  page = p;
+  document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('on', b.dataset.page === p));
+  $('#orderPage').hidden = p !== 'order';
+  $('#checkPage').hidden = p !== 'check';
+  const bar = $('#bar'); if (bar) bar.style.display = p === 'order' ? '' : 'none';
+  if (p === 'order' && gcode) setUrl({ g: gcode });
+  if (p === 'check'){
+    setUrl({ page: 'check' });
+    if (prefill){
+      const f = $('#lookupForm');
+      f.account.value = prefill.account || '';
+      f.phone.value = prefill.phone || '';
+      if (prefill.account && prefill.phone) f.requestSubmit();
+    }
+  }
+  window.scrollTo(0, 0);
+}
+
+/* ================= 下單頁 ================= */
+function announceHtml(){
+  if (!CONFIG.ANNOUNCE.length) return '';
+  return `<div class="announce"><h2>📢 團務公告</h2><ol>${CONFIG.ANNOUNCE.map(a => `<li>${esc(a)}</li>`).join('')}</ol></div>`;
+}
+
+function renderOrderPage(){
+  const open = DATA.groups.filter(g => g.open);
+  const want = new URLSearchParams(location.search).get('g');
+  const wanted = want && DATA.groups.find(g => g.code === want);
+
+  if (!open.length || (wanted && !wanted.open)){
+    const name = wanted ? `「${esc(wanted.title)}」` : '目前所有團都';
+    $('#orderPage').innerHTML = announceHtml() + `<div class="state">${name}已截單，謝謝大家支持 💙<br>
+      ${open.length ? `<a href="?">看看其他開團中的團 →</a>` : '下一團開團會再公告！'}<br><br>
+      <small>已經下單的朋友，可以到上方「查詢訂單・匯款回報」查看進度</small></div>`;
+    return;
+  }
+  gcode = wanted ? wanted.code : open[0].code;
+
+  $('#orderPage').innerHTML = `
+    ${announceHtml()}
+    ${open.length > 1 ? `<div class="gtabs">${open.map(g =>
+      `<button type="button" class="gtab" data-g="${esc(g.code)}">${esc(g.title)}${g.cutoff ? `<small>截單 ${esc(g.cutoff)}</small>` : ''}</button>`).join('')}</div>` : ''}
+    <div id="groupArea"></div>
+
+    <form id="orderForm" novalidate>
+      <div class="card">
+        <h2 id="sumTitle">🛒 我的訂單</h2>
+        <div id="summary"></div>
+        <div class="empty" style="margin-top:8px">出貨方式：${esc(CONFIG.SHIPPING)}</div>
+      </div>
+      <div class="card">
+        <h2>聯絡資料</h2>
+        <label>暱稱／社群名稱 <span class="req">*</span></label><input name="nickname" required maxlength="30">
+        <label>聯絡資訊 <span class="req">*</span></label>
+        <div class="contact">
+          <select name="platform" required>${CONFIG.PLATFORMS.map(p => `<option>${esc(p)}</option>`).join('')}</select>
+          <input name="account" required maxlength="50" placeholder="ID／帳號">
+        </div>
+        <label>手機 <span class="req">*</span></label><input name="phone" required inputmode="tel" placeholder="09xxxxxxxx" pattern="09\\d{8}">
+        <div class="empty" style="margin-top:6px">之後查詢訂單、回報匯款會用「聯絡帳號＋手機」，請填常用的喔！</div>
+      </div>
+      <div class="card">
+        <h2>其他</h2>
+        <label>備註</label><textarea name="note" maxlength="300" placeholder="例如：缺貨可換其他尺寸"></textarea>
+        <input class="hp" name="website" tabindex="-1" autocomplete="off">
+        <label class="check"><input type="checkbox" name="agree" required> 我已閱讀團務公告與本團小提醒，了解訂單送出後除缺貨外請勿隨意取消</label>
+        <button class="btn primary" id="submitBtn" type="submit">送出訂單</button>
+        <div class="msg" id="msg"></div>
+      </div>
+    </form>`;
+  document.body.insertAdjacentHTML('beforeend',
+    `<div class="bar" id="bar"><div class="in"><div id="barText"></div><button class="btn" type="button" id="goForm">填寫資料 ↓</button></div></div>`);
+  $('#goForm').onclick = () => $('#orderForm').scrollIntoView({ behavior: 'smooth' });
+  document.querySelectorAll('.gtab').forEach(b => b.onclick = () => switchGroup(b.dataset.g));
+  $('#orderForm').onsubmit = submitOrder;
+  switchGroup(gcode);
+}
+
+function switchGroup(code){
+  gcode = code; cat = '全部';
+  document.querySelectorAll('.gtab').forEach(b => b.classList.toggle('on', b.dataset.g === code));
+  if (page === 'order') setUrl({ g: code });
+  const g = group();
+  const cats = ['全部', ...new Set(products().map(p => p.category).filter(Boolean))];
+  $('#groupArea').innerHTML = `
+    <div class="ghead">
+      <h2>${esc(g.title)}</h2>
+      ${g.cutoff ? `<span class="cutoff">截單日 ${esc(g.cutoff)}</span>` : ''}
+    </div>
+    ${g.poster ? `<div class="poster" id="poster"><img src="${esc(imgUrl(g.poster, 2000))}" alt="${esc(g.title)} 品項總覽" loading="lazy"><span class="hint">🔍 點圖放大</span></div>` : ''}
+    ${g.desc ? `<div class="desc"><b>📌 本團小提醒</b>${esc(g.desc)}</div>` : ''}
+    ${cats.length > 2 ? `<div class="chips">${cats.map(c => `<button type="button" class="chip ${c===cat?'on':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
+    <div class="grid" id="grid"></div>`;
+  document.querySelectorAll('.chip').forEach(b => b.onclick = () => {
+    cat = b.dataset.cat;
+    document.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === b));
+    renderGrid();
+  });
+  const pst = $('#poster');
+  if (pst) pst.onclick = () => openLightbox(imgUrl(g.poster, 2000));
+  $('#msg').className = 'msg';
+  renderGrid(); renderCart();
+}
+
+function openLightbox(src){
+  let lb = $('#lightbox');
+  if (!lb){
+    document.body.insertAdjacentHTML('beforeend',
+      `<div class="lightbox" id="lightbox"><button class="close" type="button" aria-label="關閉">✕</button><img alt=""><div class="tip">點圖片可放大／縮小</div></div>`);
+    lb = $('#lightbox');
+    lb.querySelector('.close').onclick = () => { lb.classList.remove('on', 'zoom'); document.body.style.overflow = ''; };
+    lb.querySelector('img').onclick = () => lb.classList.toggle('zoom');
+  }
+  lb.querySelector('img').src = src;
+  lb.classList.add('on'); lb.scrollTo(0, 0);
+  document.body.style.overflow = 'hidden';
+}
+
+const qtyOf = id => Object.entries(cart()).filter(([k]) => k.split('|')[0] === id).reduce((s, [, q]) => s + q, 0);
+
+function renderGrid(){
+  const list = products().filter(p => cat === '全部' || p.category === cat);
+  const listMode = !products().some(p => p.image);
+  $('#grid').classList.toggle('list', listMode);
+  $('#grid').innerHTML = list.map(p => {
+    const opts = p.specs.length ? p.specs : [''];
+    const full = p.limit && qtyOf(p.id) >= p.limit;
+    const img = imgUrl(p.image);
+    return `<div class="prod">
+      ${listMode ? '' : `<div class="img" ${img ? `style="background-image:url('${esc(img)}')"` : ''}>${img ? '' : '💎'}</div>`}
+      <div class="body">
+        <div class="info">
+          <h3>${esc(p.name)}</h3>
+          ${p.desc ? `<div class="note">${esc(p.desc)}</div>` : ''}
+          ${p.limit ? `<div><span class="tag">每單限購 ${p.limit}</span></div>` : ''}
+        </div>
+        <div class="price">${money(p.price)}</div>
+        <div class="opts">${opts.map(sp => {
+          const k = p.id + '|' + sp, q = cart()[k] || 0;
+          return `<div class="opt"><span>${sp ? esc(sp) : '數量'}</span>
+            <div class="step"><button type="button" data-k="${esc(k)}" data-d="-1" ${q ? '' : 'disabled'}>−</button>
+            <span>${q}</span><button type="button" data-k="${esc(k)}" data-d="1" ${full ? 'disabled' : ''}>＋</button></div></div>`;
+        }).join('')}</div>
+      </div></div>`;
+  }).join('') || '<div class="state">這個分類目前沒有商品</div>';
+  document.querySelectorAll('#grid .step button').forEach(b => b.onclick = () => {
+    const c = cart(), k = b.dataset.k, q = Math.max(0, (c[k] || 0) + Number(b.dataset.d));
+    if (q) c[k] = q; else delete c[k];
+    renderGrid(); renderCart();
+  });
+}
+
+function cartLines(){
+  return Object.entries(cart()).map(([k, qty]) => {
+    const [id, spec] = k.split('|');
+    const p = products().find(x => x.id === id);
+    return p && { id, spec, qty, p, subtotal: p.price * qty };
+  }).filter(Boolean);
+}
+
+function renderCart(){
+  const lines = cartLines();
+  const count = lines.reduce((s, l) => s + l.qty, 0), total = lines.reduce((s, l) => s + l.subtotal, 0);
+  $('#sumTitle').textContent = '🛒 我的訂單｜' + group().title;
+  $('#barText').innerHTML = count ? `已選 <b>${count}</b> 件　<b>${money(total)}</b>` : '<span class="empty">尚未選擇商品</span>';
+  $('#summary').innerHTML = lines.length
+    ? `<table class="summary">${lines.map(l => `<tr><td>${esc(l.p.name)}${l.spec ? `（${esc(l.spec)}）` : ''} × ${l.qty}</td><td>${money(l.subtotal)}</td></tr>`).join('')}
+       <tr class="total"><td>${TOTAL_NOTE}</td><td>${money(total)}</td></tr></table>`
+    : '<div class="empty">請先在上方選擇想要的商品數量</div>';
+}
+
+async function submitOrder(e){
+  e.preventDefault();
+  const f = e.target, msg = $('#msg'), btn = $('#submitBtn');
+  msg.className = 'msg';
+  const items = cartLines().map(l => ({ id: l.id, spec: l.spec, qty: l.qty }));
+  if (!items.length){ msg.className = 'msg err'; msg.textContent = '還沒有選擇商品喔！'; return; }
+  if (!f.checkValidity()){ f.reportValidity(); return; }
+  const fd = new FormData(f);
+  const payload = Object.fromEntries(['nickname','platform','account','phone','note','website'].map(k => [k, String(fd.get(k) || '').trim()]));
+  payload.pickup = CONFIG.SHIPPING;
+  payload.group = gcode;
+  payload.items = items;
+  btn.disabled = true; btn.textContent = '送出中…';
+  try {
+    const data = await api(payload);
+    if (!data.ok) throw new Error(data.error || '送出失敗');
+    msg.className = 'msg ok';
+    msg.innerHTML = `✅ 訂單已送出！訂單編號 <b>${esc(data.orderId)}</b>，金額 <b>${money(data.total)}</b>（不含國際運費、稅金與境內運）\n` +
+      (data.payment ? `匯款資訊：${esc(data.payment)}\n` : '') +
+      `下單完畢請盡速匯款，如無匯款則不進行下單作業；已完成匯款可至「查詢訂單・匯款回報」分頁填寫匯款資訊，後續訂單資訊與狀態可直接於該分頁查詢。\n` +
+      `<button type="button" class="btn link" id="toReport">前往匯款回報 →</button>`;
+    const pre = { account: payload.account, phone: payload.phone };
+    $('#toReport').onclick = () => showPage('check', pre);
+    carts[gcode] = {};
+    f.elements.note.value = ''; f.elements.agree.checked = false;
+    renderGrid(); renderCart();
+  } catch (err) {
+    msg.className = 'msg err';
+    msg.textContent = '送出失敗：' + err.message;
+  } finally {
+    btn.disabled = false; btn.textContent = '送出訂單';
+  }
+}
+
+/* ================= 查詢訂單・匯款回報頁 ================= */
+function renderCheckPage(){
+  $('#checkPage').innerHTML = `
+    ${announceHtml()}
+    <div class="card">
+      <h2>🔍 查詢訂單</h2>
+      <form id="lookupForm" novalidate>
+        <div class="row2">
+          <div><label>聯絡帳號（LINE／Threads／IG） <span class="req">*</span></label><input name="account" required placeholder="下單時填的 ID／帳號"></div>
+          <div><label>手機 <span class="req">*</span></label><input name="phone" required inputmode="tel" placeholder="09xxxxxxxx"></div>
+        </div>
+        <button class="btn primary" type="submit" id="lookupBtn">查詢我的訂單</button>
+      </form>
+      <div class="msg" id="lookupMsg"></div>
+    </div>
+    <div id="orderResult"></div>`;
+  $('#lookupForm').onsubmit = async e => {
+    e.preventDefault();
+    const f = e.target, msg = $('#lookupMsg'), btn = $('#lookupBtn');
+    msg.className = 'msg';
+    if (!f.checkValidity()){ f.reportValidity(); return; }
+    const q = { account: f.account.value.trim(), phone: f.phone.value.trim() };
+    btn.disabled = true; btn.textContent = '查詢中…';
+    try {
+      const data = await api({ action: 'lookup', ...q });
+      if (!data.ok) throw new Error(data.error);
+      lastLookup = q;
+      showOrders(data);
+      $('#orderResult').scrollIntoView({ behavior: 'smooth' });
+    } catch (err) {
+      $('#orderResult').innerHTML = '';
+      msg.className = 'msg err'; msg.textContent = err.message;
+    } finally {
+      btn.disabled = false; btn.textContent = '查詢我的訂單';
+    }
+  };
+}
+
+function badge(text){
+  const cls = /已付款|已完成|已寄出/.test(text) ? 'ok' : /待對帳|已採購|已到貨|已確認/.test(text) ? 'wait' : /未付款|取消|退款/.test(text) ? 'no' : '';
+  return `<span class="badge ${cls}">${esc(text)}</span>`;
+}
+
+function showOrders(data, okId){
+  $('#orderResult').innerHTML =
+    `<div class="empty">共找到 ${data.orders.length} 筆訂單（新的在最上面）</div>` +
+    data.orders.map(o => orderCard(o, data.payment, okId === o.id)).join('');
+  document.querySelectorAll('.reportForm').forEach(rf => rf.onsubmit = async e => {
+    e.preventDefault();
+    const id = rf.dataset.id, msg = rf.parentElement.querySelector('.msg'), btn = rf.querySelector('button');
+    msg.className = 'msg';
+    if (!rf.checkValidity()){ rf.reportValidity(); return; }
+    btn.disabled = true; btn.textContent = '送出中…';
+    try {
+      const res = await api({ action: 'report', ...lastLookup, orderId: id, last5: rf.last5.value.trim(), amount: rf.amount.value, date: rf.date.value });
+      if (!res.ok) throw new Error(res.error);
+      showOrders(res, id);
+      document.getElementById('o-' + id).scrollIntoView({ behavior: 'smooth' });
+    } catch (err) {
+      msg.className = 'msg err'; msg.textContent = '送出失敗：' + err.message;
+      btn.disabled = false; btn.textContent = '送出匯款回報';
+    }
+  });
+}
+
+function orderCard(o, payment, justReported){
+  const paid = /已付款|已退款/.test(o.payStatus);
+  const cancelled = o.status === '已取消';
+  return `<div class="ocard" id="o-${esc(o.id)}">
+    <h3>📦 ${esc(o.id)}</h3>
+    <div style="margin-bottom:8px">${badge(o.status)}${badge(o.payStatus)}</div>
+    <dl class="kv">
+      <dt>團名</dt><dd>${esc(o.group)}</dd>
+      <dt>下單時間</dt><dd>${esc(o.time)}</dd>
+      <dt>出貨方式</dt><dd>${esc(o.pickup || CONFIG.SHIPPING)}${o.pickupDetail ? '　' + esc(o.pickupDetail) : ''}</dd>
+      ${o.tracking ? `<dt>出貨單號</dt><dd><b>${esc(o.tracking)}</b></dd>` : ''}
+    </dl>
+    <table class="summary">${o.items.map(i => `<tr><td>${esc(i.name)}${i.spec ? `（${esc(i.spec)}）` : ''} × ${i.qty}</td><td>${money(i.subtotal)}</td></tr>`).join('')}
+      <tr class="total"><td>${TOTAL_NOTE}</td><td>${money(o.total)}</td></tr></table>
+    <div class="sub">
+      ${paid ? `<div class="msg ok">✅ 已確認收到款項，謝謝！</div>`
+      : cancelled ? `<div class="empty">這筆訂單已取消，如有疑問請私訊聯絡我。</div>`
+      : `<b>💰 匯款回報</b>
+        ${payment ? `<div class="pay" style="margin-top:6px">匯款資訊：${esc(payment)}</div>` : ''}
+        ${o.last5 ? `<div class="empty">已回報：後五碼 <b>${esc(o.last5)}</b>${o.reportAmount ? `，金額 ${money(o.reportAmount)}` : ''}${o.reportDate ? `，${esc(o.reportDate)} 匯款` : ''}。對帳確認後狀態會變成「已付款」；填錯可以重新送出。</div>` : ''}
+        <form class="reportForm" data-id="${esc(o.id)}" novalidate>
+          <label>匯款帳號後五碼 <span class="req">*</span></label>
+          <input name="last5" required inputmode="numeric" maxlength="5" pattern="\\d{5}" placeholder="5 位數字" value="${esc(o.last5)}">
+          <div class="row2">
+            <div><label>匯款金額 <span class="req">*</span></label><input name="amount" type="number" min="1" required value="${o.reportAmount || o.total}"></div>
+            <div><label>匯款日期 <span class="req">*</span></label><input name="date" type="date" required value="${today()}"></div>
+          </div>
+          <button class="btn primary" type="submit">${o.last5 ? '重新送出匯款回報' : '送出匯款回報'}</button>
+        </form>`}
+      <div class="msg ${justReported ? 'ok' : ''}">${justReported ? '✅ 匯款回報成功！對帳後會把狀態改成「已付款」，謝謝你 💙' : ''}</div>
+    </div>
+  </div>`;
+}
+
+load();
+</script>
+</body>
+</html>
