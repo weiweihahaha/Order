@@ -92,8 +92,11 @@
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   /* 品項總覽圖 */
   .poster{margin:12px 0;background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px;cursor:zoom-in;position:relative}
-  .poster img{display:block;width:100%;height:auto;border-radius:10px}
-  .poster .hint{position:absolute;right:16px;bottom:16px;background:#1c2436cc;color:#fff;font-size:.78rem;border-radius:999px;padding:3px 10px}
+  .poster .frame{height:360px;overflow:hidden;border-radius:10px;position:relative;background:#eef2f8}
+  .poster .frame img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
+  .poster .frame::after{content:"";position:absolute;left:0;right:0;bottom:0;height:90px;background:linear-gradient(#ffffff00,#ffffffee)}
+  .poster .hint{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:.88rem;font-weight:700;border-radius:999px;padding:6px 16px;white-space:nowrap;box-shadow:0 2px 8px #14377a40;z-index:1}
+  @media (min-width:600px){.poster .frame{height:440px}}
   .lightbox{position:fixed;inset:0;background:#0b1020ee;z-index:50;overflow:auto;display:none;-webkit-overflow-scrolling:touch}
   .lightbox.on{display:block}
   .lightbox img{display:block;width:100%;max-width:1100px;margin:0 auto;cursor:zoom-in}
@@ -331,7 +334,7 @@ function switchGroup(code){
       <h2>${esc(g.title)}</h2>
       ${g.cutoff ? `<span class="cutoff">截單日 ${esc(g.cutoff)}</span>` : ''}
     </div>
-    ${g.poster ? `<div class="poster" id="poster"><img src="${esc(imgUrl(g.poster, 2000))}" alt="${esc(g.title)} 品項總覽" loading="lazy"><span class="hint">🔍 點圖放大</span></div>` : ''}
+    ${g.poster ? `<div class="poster" id="poster"><div class="frame"><img src="${esc(imgUrl(g.poster, 2000))}" alt="${esc(g.title)} 品項總覽" loading="lazy"></div><span class="hint">🔍 點我看完整品項圖</span></div>` : ''}
     ${g.desc ? `<div class="desc"><b>📌 本團小提醒</b>${esc(g.desc)}</div>` : ''}
     ${cats.length > 2 ? `<div class="chips">${cats.map(c => `<button type="button" class="chip ${c===cat?'on':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
     <div class="grid" id="grid"></div>`;
