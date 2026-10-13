@@ -27,6 +27,8 @@
   .announce h2{margin:0 0 6px;font-size:1.02rem;color:var(--accent-deep)}
   .announce ol{margin:0;padding-left:1.3em;font-size:.92rem}
   .announce li{margin:3px 0}
+  .line-btn{display:inline-flex;align-items:center;gap:6px;background:#06c755;color:#fff !important;text-decoration:none;font-weight:700;font-size:.88rem;border-radius:999px;padding:4px 14px;margin:4px 0 2px}
+  .line-btn:hover{background:#05b04b}
   .cutoff{display:inline-block;background:var(--accent);color:#fff;border-radius:999px;padding:2px 12px;font-size:.85rem;font-weight:600;white-space:nowrap}
   .desc{background:var(--accent-soft);border-radius:12px;padding:12px 14px;margin:12px 0;font-size:.92rem;white-space:pre-line}
   .desc b{display:block;color:var(--accent-deep);margin-bottom:2px}
@@ -132,8 +134,11 @@ const CONFIG = {
     '所有團務皆須先匯款才會進行購入作業，填單送出後會提供匯款帳號。',
     '出貨方式統一開立 7-11 賣貨便賣場。',
     '訂單填寫送出後除因缺貨未購買到外，請勿隨意取消，亦不接受缺A pass B。',
-    '國際運輸商品皆默認廠損，若有輕微盒損、小卡廠損皆不屬於售後範圍，介意者請勿下單。'
+    '國際運輸商品皆默認廠損，若有輕微盒損、小卡廠損皆不屬於售後範圍，介意者請勿下單。',
+    '填單完成後，歡迎加入 LINE 社群，團務進度、到貨與出貨通知都會在社群公告 💙'
   ],
+  // LINE 社群連結（會顯示在公告最後一點、以及下單成功的提示裡）
+  COMMUNITY_URL: 'https://line.me/ti/g2/OBZKshU2dujv0WMji1gK8-EBKqq9j-XtxhtKQg?utm_source=invitation&utm_medium=link_copy&utm_campaign=default',
   // 聯絡方式選項
   PLATFORMS: ['LINE', 'Threads', 'IG'],
   // 出貨方式（統一）
@@ -266,7 +271,13 @@ function showPage(p, prefill){
 /* ================= 下單頁 ================= */
 function announceHtml(){
   if (!CONFIG.ANNOUNCE.length) return '';
-  return `<div class="announce"><h2>📢 團務公告</h2><ol>${CONFIG.ANNOUNCE.map(a => `<li>${esc(a)}</li>`).join('')}</ol></div>`;
+  const last = CONFIG.ANNOUNCE.length - 1;
+  return `<div class="announce"><h2>📢 團務公告</h2><ol>${CONFIG.ANNOUNCE.map((a, i) =>
+    `<li>${esc(a)}${i === last && CONFIG.COMMUNITY_URL ? `<br>${lineBtn()}` : ''}</li>`).join('')}</ol></div>`;
+}
+
+function lineBtn(){
+  return `<a class="line-btn" href="${esc(CONFIG.COMMUNITY_URL)}" target="_blank" rel="noopener">💬 點我加入 LINE 社群</a>`;
 }
 
 function renderOrderPage(){
@@ -436,6 +447,7 @@ async function submitOrder(e){
     msg.innerHTML = `✅ 訂單已送出！訂單編號 <b>${esc(data.orderId)}</b>，金額 <b>${money(data.total)}</b>（不含國際運費、稅金與境內運）\n` +
       (data.payment ? `匯款資訊：${esc(data.payment)}\n` : '') +
       `下單完畢請盡速匯款，如無匯款則不進行下單作業；已完成匯款可至「查詢訂單・匯款回報」分頁填寫匯款資訊，後續訂單資訊與狀態可直接於該分頁查詢。\n` +
+      (CONFIG.COMMUNITY_URL ? `團務進度與到貨、出貨通知會在 LINE 社群公告，還沒加入的話記得加入喔！\n${lineBtn()}\n` : '') +
       `<button type="button" class="btn link" id="toReport">前往匯款回報 →</button>`;
     const pre = { account: payload.account, phone: payload.phone };
     $('#toReport').onclick = () => showPage('check', pre);
