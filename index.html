@@ -90,6 +90,15 @@
   .kv dt{color:var(--muted)} .kv dd{margin:0}
   .badge{display:inline-block;padding:1px 10px;border-radius:999px;font-size:.8rem;font-weight:700;background:#eceff5;color:var(--ink);margin-right:6px}
   .badge.ok{background:#e1f3e8;color:var(--ok)} .badge.wait{background:#fdf1d8;color:var(--warn)} .badge.no{background:#fbeaea;color:var(--err)}
+  .badge.sm{font-size:.72rem;padding:0 8px;margin:2px 0 0}
+  .items td{vertical-align:top}
+  .items .nm{display:block}
+  .items tr.off .nm,.items tr.off .amt{color:var(--muted);text-decoration:line-through}
+  .items tr.refund td{color:var(--err);font-size:.88rem;border-bottom:0;padding-top:8px}
+  .refundBox{border:1px dashed #e7c27d;background:#fffcf5;border-radius:12px;padding:12px 14px;margin-bottom:14px}
+  .refundBox .radios{margin:6px 0 2px}
+  .refundBox .radios label{margin:6px 0}
+  .notice{background:#fff7e8;border-radius:10px;padding:8px 12px;font-size:.88rem;color:#8a5a12;margin:8px 0}
   .pay{background:var(--accent-soft);border-radius:10px;padding:10px 12px;font-size:.92rem;white-space:pre-line;margin-bottom:6px}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   /* 品項總覽圖 */
@@ -204,18 +213,30 @@ function demoApi(p){
     const total = cartLines().reduce((s, l) => s + l.subtotal, 0);
     const id = gcode + '-' + String(demoOrders.filter(o => o.id.startsWith(gcode)).length + 1).padStart(3, '0');
     demoOrders.unshift({ id, group: group().title, time: '2026/10/13 20:15', total, account: norm(p.account), phone: p.phone,
-      items: cartLines().map(l => ({ name: l.p.name, spec: l.spec, qty: l.qty, subtotal: l.subtotal })),
+      items: cartLines().map((l, i) => ({ name: l.p.name, spec: l.spec, qty: l.qty, subtotal: l.subtotal,
+        status: i === 1 ? '購入失敗' : '已採購', pay: i === 1 ? '待退款' : '未付款' })),
       pickup: CONFIG.SHIPPING, pickupDetail: '', status: '待確認', payStatus: '未付款',
       last5: '', reportAmount: 0, reportDate: '', tracking: '' });
     return { ok: true, orderId: id, total, payment: '（預覽模式）銀行代碼 000　帳號 12345678' };
   }
   const mine = demoOrders.filter(o => o.account === norm(p.account) && o.phone === p.phone);
   if (!mine.length) return { ok: false, error: '查不到訂單（預覽模式請先下一筆單再查詢）' };
+  if (p.action === 'refund'){
+    const o = mine.find(x => x.id === p.orderId);
+    o.refundInfo = p.method === '退款'
+      ? { method: '退款', bank: p.refundBank, accountTail: String(p.refundAccount).slice(-4), name: String(p.refundName).slice(0, 1) + '○', time: '2026/11/05 10:00' }
+      : { method: '保留等通販', bank: '', accountTail: '', name: '', time: '2026/11/05 10:00' };
+  }
+  const view = o => {
+    const need = o.items.filter(i => i.status === '購入失敗' && i.pay === '待退款');
+    return { ...o, canWait: o.id.startsWith('CON26'),
+      refund: { needed: need.length > 0, amount: need.reduce((s, i) => s + i.subtotal, 0), method: '', ...(o.refundInfo || {}) } };
+  };
   if (p.action === 'report'){
     const o = mine.find(x => x.id === p.orderId);
     Object.assign(o, { payStatus: '已回報，待對帳', last5: p.last5, reportAmount: Number(p.amount), reportDate: p.date.replace(/-/g, '/') });
   }
-  return { ok: true, orders: mine.map(o => ({ ...o })), payment: '（預覽模式）銀行代碼 000　帳號 12345678' };
+  return { ok: true, orders: mine.map(view), payment: '（預覽模式）銀行代碼 000　帳號 12345678' };
 }
 
 async function load(){
@@ -500,15 +521,45 @@ function renderCheckPage(){
   };
 }
 
-function badge(text){
-  const cls = /已付款|已完成|已寄出/.test(text) ? 'ok' : /待對帳|已採購|已到貨|已確認/.test(text) ? 'wait' : /未付款|取消|退款/.test(text) ? 'no' : '';
-  return `<span class="badge ${cls}">${esc(text)}</span>`;
+const INACTIVE = ['購入失敗', '已取消'];
+
+function badge(text, small){
+  const cls = /已付款|已完成|已寄出|已退款/.test(text) ? 'ok' : /待對帳|已採購|已到貨|已確認|待退款/.test(text) ? 'wait' : /未付款|取消|購入失敗/.test(text) ? 'no' : '';
+  return `<span class="badge ${cls}${small ? ' sm' : ''}">${esc(text)}</span>`;
 }
 
-function showOrders(data, okId){
+function showOrders(data, okId, refundOkId){
   $('#orderResult').innerHTML =
     `<div class="empty">共找到 ${data.orders.length} 筆訂單（新的在最上面）</div>` +
-    data.orders.map(o => orderCard(o, data.payment, okId === o.id)).join('');
+    data.orders.map(o => orderCard(o, data.payment, okId === o.id, refundOkId === o.id)).join('');
+  document.querySelectorAll('.refundForm').forEach(ff => {
+    const method = () => (ff.querySelector('[name=method]:checked') || {}).value || '退款';
+    const toggle = () => { ff.querySelector('.bankFields').hidden = method() === '等通販'; };
+    ff.querySelectorAll('[name=method]').forEach(r => r.onchange = toggle);
+    toggle();
+    ff.onsubmit = async e => {
+      e.preventDefault();
+      const id = ff.dataset.id, msg = ff.parentElement.querySelector('.msg'), btn = ff.querySelector('button');
+      msg.className = 'msg';
+      const m = method();
+      const body = { action: 'refund', ...lastLookup, orderId: id, method: m,
+        refundBank: ff.elements.rfBank.value.trim(), refundAccount: ff.elements.rfAccount.value.replace(/\D/g, ''), refundName: ff.elements.rfName.value.trim() };
+      if (m === '退款'){
+        const err = !body.refundBank ? '請填寫退款銀行' : (body.refundAccount.length < 6 || body.refundAccount.length > 20) ? '帳號請填 6～20 位數字' : !body.refundName ? '請填寫戶名' : '';
+        if (err){ msg.className = 'msg err'; msg.textContent = err; return; }
+      }
+      btn.disabled = true; btn.textContent = '送出中…';
+      try {
+        const res = await api(body);
+        if (!res.ok) throw new Error(res.error);
+        showOrders(res, null, id);
+        document.getElementById('o-' + id).scrollIntoView({ behavior: 'smooth' });
+      } catch (err) {
+        msg.className = 'msg err'; msg.textContent = '送出失敗：' + err.message;
+        btn.disabled = false; btn.textContent = '送出退款資料';
+      }
+    };
+  });
   document.querySelectorAll('.reportForm').forEach(rf => rf.onsubmit = async e => {
     e.preventDefault();
     const id = rf.dataset.id, msg = rf.parentElement.querySelector('.msg'), btn = rf.querySelector('button');
@@ -527,23 +578,72 @@ function showOrders(data, okId){
   });
 }
 
-function orderCard(o, payment, justReported){
+function refundHtml(o, ok){
+  const rf = o.refund || {};
+  if (!rf.needed && !rf.method) return '';
+  const done = rf.method === '退款'
+    ? `已填寫：退款至 <b>${esc(rf.bank)}</b>，帳號末四碼 <b>${esc(rf.accountTail)}</b>${rf.name ? `（戶名 ${esc(rf.name)}）` : ''}`
+    : rf.method ? '已選擇：<b>保留款項，等後續通販</b>' : '';
+  const waiting = rf.method === '保留等通販';
+  return `<div class="refundBox">
+    <b>💸 退款處理</b>
+    <div class="empty">未購入商品金額 <b>${money(rf.amount)}</b>，請選擇處理方式${rf.method ? '，如需修改可以重新送出' : ''}。</div>
+    ${done ? `<div class="notice">${done}${rf.time ? `<br><small>填寫時間：${esc(rf.time)}</small>` : ''}</div>` : ''}
+    ${rf.needed ? `<form class="refundForm" data-id="${esc(o.id)}" novalidate>
+      <div class="radios">
+        <label class="check"><input type="radio" name="method" value="退款" ${waiting ? '' : 'checked'}> 申請退款</label>
+        ${o.canWait ? `<label class="check"><input type="radio" name="method" value="等通販" ${waiting ? 'checked' : ''}> 保留款項，等後續通販</label>` : ''}
+      </div>
+      <div class="bankFields">
+        <label>退款銀行（代碼＋名稱） <span class="req">*</span></label><input name="rfBank" maxlength="50" placeholder="例：822 中國信託">
+        <label>帳號 <span class="req">*</span></label><input name="rfAccount" inputmode="numeric" maxlength="24" placeholder="只填數字">
+        <label>戶名 <span class="req">*</span></label><input name="rfName" maxlength="30">
+      </div>
+      <button class="btn primary" type="submit">${rf.method ? '更新退款資料' : '送出退款資料'}</button>
+    </form>` : ''}
+    <div class="msg ${ok ? 'ok' : ''}">${ok ? '✅ 已收到你的退款資料，處理後付款狀態會改成「已退款」，謝謝你的耐心 💙' : ''}</div>
+  </div>`;
+}
+
+function orderCard(o, payment, justReported, refundOk){
+  const items = o.items.map(i => ({ ...i, status: i.status || o.status, pay: i.pay || o.payStatus }));
+  const off = items.filter(i => INACTIVE.includes(i.status));
+  const offAmt = off.reduce((s, i) => s + i.subtotal, 0);
+  const allOff = o.allInactive || (items.length && off.length === items.length);
   const paid = /已付款|已退款/.test(o.payStatus);
-  const cancelled = o.status === '已取消';
+  // 訂單狀態摘要：各品項狀態一樣就顯示一個，不一樣就列出「狀態 ×件數」
+  const counts = {};
+  items.forEach(i => counts[i.status] = (counts[i.status] || 0) + 1);
+  const keys = Object.keys(counts);
+  const statusBadges = keys.length <= 1 ? badge(keys[0] || o.status)
+    : keys.map(k => badge(`${k} ×${counts[k]}`)).join('');
+  const mixed = keys.length > 1;
   return `<div class="ocard" id="o-${esc(o.id)}">
     <h3>📦 ${esc(o.id)}</h3>
-    <div style="margin-bottom:8px">${badge(o.status)}${badge(o.payStatus)}</div>
+    <div style="margin-bottom:8px">${statusBadges}${badge(o.payStatus)}</div>
     <dl class="kv">
       <dt>團名</dt><dd>${esc(o.group)}</dd>
       <dt>下單時間</dt><dd>${esc(o.time)}</dd>
       <dt>出貨方式</dt><dd>${esc(o.pickup || CONFIG.SHIPPING)}${o.pickupDetail ? '　' + esc(o.pickupDetail) : ''}</dd>
       ${o.tracking ? `<dt>出貨單號</dt><dd><b>${esc(o.tracking)}</b></dd>` : ''}
     </dl>
-    <table class="summary">${o.items.map(i => `<tr><td>${esc(i.name)}${i.spec ? `（${esc(i.spec)}）` : ''} × ${i.qty}</td><td>${money(i.subtotal)}</td></tr>`).join('')}
-      <tr class="total"><td>${TOTAL_NOTE}</td><td>${money(o.total)}</td></tr></table>
+    ${off.length && !allOff ? `<div class="notice">⚠️ 有 ${off.length} 項商品未購入成功，該品項金額 ${money(offAmt)} 會退款給你（或依私訊討論的方式處理）。</div>` : ''}
+    <table class="summary items">${items.map(i => {
+      const isOff = INACTIVE.includes(i.status);
+      const showPay = isOff && /退款/.test(i.pay);
+      return `<tr class="${isOff ? 'off' : ''}">
+        <td><span class="nm">${esc(i.name)}${i.spec ? `（${esc(i.spec)}）` : ''} × ${i.qty}</span>
+          ${mixed || isOff ? badge(i.status, true) : ''}${showPay ? ' ' + badge(i.pay, true) : ''}</td>
+        <td class="amt">${money(i.subtotal)}</td></tr>`;
+    }).join('')}
+      <tr class="total"><td>${TOTAL_NOTE}</td><td>${money(o.total)}</td></tr>
+      ${offAmt && !allOff ? `<tr class="refund"><td>未購入商品（退款）</td><td>− ${money(offAmt)}</td></tr>
+      <tr class="total"><td>實際購入商品金額</td><td>${money(o.total - offAmt)}</td></tr>` : ''}
+    </table>
     <div class="sub">
-      ${paid ? `<div class="msg ok">✅ 已確認收到款項，謝謝！</div>`
-      : cancelled ? `<div class="empty">這筆訂單已取消，如有疑問請私訊聯絡我。</div>`
+      ${refundHtml(o, refundOk)}
+      ${allOff ? `<div class="empty">這筆訂單的商品都沒有購入成功${/退款/.test(items[0].pay) ? `，目前退款狀態：${badge(items[0].pay, true)}` : ''}，如已匯款會全額退款，有問題請私訊聯絡我 🙏</div>`
+      : paid ? `<div class="msg ok">✅ 已確認收到款項，謝謝！</div>`
       : `<b>💰 匯款回報</b>
         ${payment ? `<div class="pay" style="margin-top:6px">匯款資訊：${esc(payment)}</div>` : ''}
         ${o.last5 ? `<div class="empty">已回報：後五碼 <b>${esc(o.last5)}</b>${o.reportAmount ? `，金額 ${money(o.reportAmount)}` : ''}${o.reportDate ? `，${esc(o.reportDate)} 匯款` : ''}。對帳確認後狀態會變成「已付款」；填錯可以重新送出。</div>` : ''}
@@ -551,7 +651,7 @@ function orderCard(o, payment, justReported){
           <label>匯款帳號後五碼 <span class="req">*</span></label>
           <input name="last5" required inputmode="numeric" maxlength="5" pattern="\\d{5}" placeholder="5 位數字" value="${esc(o.last5)}">
           <div class="row2">
-            <div><label>匯款金額 <span class="req">*</span></label><input name="amount" type="number" min="1" required value="${o.reportAmount || o.total}"></div>
+            <div><label>匯款金額 <span class="req">*</span></label><input name="amount" type="number" min="1" required value="${o.reportAmount || (o.total - offAmt)}"></div>
             <div><label>匯款日期 <span class="req">*</span></label><input name="date" type="date" required value="${today()}"></div>
           </div>
           <button class="btn primary" type="submit">${o.last5 ? '重新送出匯款回報' : '送出匯款回報'}</button>
