@@ -94,6 +94,7 @@
   .items td{vertical-align:top}
   .items .nm{display:block}
   .items tr.off .nm,.items tr.off .amt{color:var(--muted);text-decoration:line-through}
+  .items tr.waitrow td{color:var(--warn) !important}
   .items tr.refund td{color:var(--err);font-size:.88rem;border-bottom:0;padding-top:8px}
   .refundBox{border:1px dashed #e7c27d;background:#fffcf5;border-radius:12px;padding:12px 14px;margin-bottom:14px}
   .refundBox .radios{margin:6px 0 2px}
@@ -162,7 +163,7 @@ const CONFIG = {
 const DEMO = !/\/exec$/.test(CONFIG.GAS_URL) || CONFIG.GAS_URL.includes('請貼上');
 const DEMO_DATA = {
   ok: true,
-  site: { title: '💙雜七雜八都好想買' },
+  site: { title: '日韓代購團' },
   groups: [
     { code: 'CON26', title: '🇰🇷 2026 演唱會周邊代購', cutoff: '2026/10/31', open: true, desc: '・價格已含代購費\n・預計 12 月初到台' },
     { code: 'JP1105', title: '🇯🇵 日本藥妝零食團', cutoff: '2026/11/05', open: true, desc: '・11 月中寄出\n・缺貨會全額退款' }
@@ -223,12 +224,16 @@ function demoApi(p){
   if (!mine.length) return { ok: false, error: '查不到訂單（預覽模式請先下一筆單再查詢）' };
   if (p.action === 'refund'){
     const o = mine.find(x => x.id === p.orderId);
+    o.items.forEach(i => {
+      if (p.method === '等通販' && i.status === '購入失敗' && i.pay === '待退款'){ i.status = '等待通販'; i.pay = '保留款項'; }
+      else if (p.method === '退款' && i.status === '等待通販' && i.pay === '保留款項'){ i.status = '購入失敗'; i.pay = '待退款'; }
+    });
     o.refundInfo = p.method === '退款'
       ? { method: '退款', bank: p.refundBank, accountTail: String(p.refundAccount).slice(-4), name: String(p.refundName).slice(0, 1) + '○', time: '2026/11/05 10:00' }
       : { method: '保留等通販', bank: '', accountTail: '', name: '', time: '2026/11/05 10:00' };
   }
   const view = o => {
-    const need = o.items.filter(i => i.status === '購入失敗' && i.pay === '待退款');
+    const need = o.items.filter(i => (i.status === '購入失敗' && i.pay === '待退款') || (i.status === '等待通販' && i.pay === '保留款項'));
     return { ...o, canWait: o.id.startsWith('CON26'),
       refund: { needed: need.length > 0, amount: need.reduce((s, i) => s + i.subtotal, 0), method: '', ...(o.refundInfo || {}) } };
   };
@@ -522,9 +527,10 @@ function renderCheckPage(){
 }
 
 const INACTIVE = ['購入失敗', '已取消'];
+const WAIT = '等待通販';
 
 function badge(text, small){
-  const cls = /已付款|已完成|已寄出|已退款/.test(text) ? 'ok' : /待對帳|已採購|已到貨|已確認|待退款/.test(text) ? 'wait' : /未付款|取消|購入失敗/.test(text) ? 'no' : '';
+  const cls = /已付款|已完成|已寄出|已退款/.test(text) ? 'ok' : /待對帳|已採購|已到貨|已確認|待退款|等待通販|保留款項/.test(text) ? 'wait' : /未付款|取消|購入失敗/.test(text) ? 'no' : '';
   return `<span class="badge ${cls}${small ? ' sm' : ''}">${esc(text)}</span>`;
 }
 
@@ -543,9 +549,9 @@ function showOrders(data, okId, refundOkId){
       msg.className = 'msg';
       const m = method();
       const body = { action: 'refund', ...lastLookup, orderId: id, method: m,
-        refundBank: ff.elements.rfBank.value.trim(), refundAccount: ff.elements.rfAccount.value.replace(/\D/g, ''), refundName: ff.elements.rfName.value.trim() };
+        refundBank: ff.elements.rfBank.value.replace(/\D/g, ''), refundAccount: ff.elements.rfAccount.value.replace(/\D/g, ''), refundName: ff.elements.rfName.value.trim() };
       if (m === '退款'){
-        const err = !body.refundBank ? '請填寫退款銀行' : (body.refundAccount.length < 6 || body.refundAccount.length > 20) ? '帳號請填 6～20 位數字' : !body.refundName ? '請填寫戶名' : '';
+        const err = !/^\d{3}$/.test(body.refundBank) ? '銀行代碼請填 3 碼數字' : (body.refundAccount.length < 6 || body.refundAccount.length > 20) ? '帳號請填 6～20 位數字' : !body.refundName ? '請填寫戶名' : '';
         if (err){ msg.className = 'msg err'; msg.textContent = err; return; }
       }
       btn.disabled = true; btn.textContent = '送出中…';
@@ -556,7 +562,7 @@ function showOrders(data, okId, refundOkId){
         document.getElementById('o-' + id).scrollIntoView({ behavior: 'smooth' });
       } catch (err) {
         msg.className = 'msg err'; msg.textContent = '送出失敗：' + err.message;
-        btn.disabled = false; btn.textContent = '送出退款資料';
+        btn.disabled = false; btn.textContent = '送出';
       }
     };
   });
@@ -582,11 +588,11 @@ function refundHtml(o, ok){
   const rf = o.refund || {};
   if (!rf.needed && !rf.method) return '';
   const done = rf.method === '退款'
-    ? `已填寫：退款至 <b>${esc(rf.bank)}</b>，帳號末四碼 <b>${esc(rf.accountTail)}</b>${rf.name ? `（戶名 ${esc(rf.name)}）` : ''}`
+    ? `已填寫：退款至銀行代碼 <b>${esc(rf.bank)}</b>，帳號末四碼 <b>${esc(rf.accountTail)}</b>${rf.name ? `（戶名 ${esc(rf.name)}）` : ''}`
     : rf.method ? '已選擇：<b>保留款項，等後續通販</b>' : '';
   const waiting = rf.method === '保留等通販';
   return `<div class="refundBox">
-    <b>💸 退款處理</b>
+    <b>💸 未購入商品處理</b>
     <div class="empty">未購入商品金額 <b>${money(rf.amount)}</b>，請選擇處理方式${rf.method ? '，如需修改可以重新送出' : ''}。</div>
     ${done ? `<div class="notice">${done}${rf.time ? `<br><small>填寫時間：${esc(rf.time)}</small>` : ''}</div>` : ''}
     ${rf.needed ? `<form class="refundForm" data-id="${esc(o.id)}" novalidate>
@@ -595,13 +601,15 @@ function refundHtml(o, ok){
         ${o.canWait ? `<label class="check"><input type="radio" name="method" value="等通販" ${waiting ? 'checked' : ''}> 保留款項，等後續通販</label>` : ''}
       </div>
       <div class="bankFields">
-        <label>退款銀行（代碼＋名稱） <span class="req">*</span></label><input name="rfBank" maxlength="50" placeholder="例：822 中國信託">
+        <label>退款銀行代碼 <span class="req">*</span></label><input name="rfBank" inputmode="numeric" maxlength="3" placeholder="3 碼數字，例：822">
         <label>帳號 <span class="req">*</span></label><input name="rfAccount" inputmode="numeric" maxlength="24" placeholder="只填數字">
         <label>戶名 <span class="req">*</span></label><input name="rfName" maxlength="30">
       </div>
-      <button class="btn primary" type="submit">${rf.method ? '更新退款資料' : '送出退款資料'}</button>
+      <button class="btn primary" type="submit">${rf.method ? '更新處理方式' : '送出'}</button>
     </form>` : ''}
-    <div class="msg ${ok ? 'ok' : ''}">${ok ? '✅ 已收到你的退款資料，處理後付款狀態會改成「已退款」，謝謝你的耐心 💙' : ''}</div>
+    <div class="msg ${ok ? 'ok' : ''}">${!ok ? '' : waiting
+      ? '✅ 已幫你保留款項，品項狀態已改成「等待通販」，有通販消息會在社群公告 💙'
+      : '✅ 已收到你的退款資料，處理後付款狀態會改成「已退款」，謝謝你的耐心 💙'}</div>
   </div>`;
 }
 
@@ -609,7 +617,10 @@ function orderCard(o, payment, justReported, refundOk){
   const items = o.items.map(i => ({ ...i, status: i.status || o.status, pay: i.pay || o.payStatus }));
   const off = items.filter(i => INACTIVE.includes(i.status));
   const offAmt = off.reduce((s, i) => s + i.subtotal, 0);
-  const allOff = o.allInactive || (items.length && off.length === items.length);
+  const wait = items.filter(i => i.status === WAIT);
+  const waitAmt = wait.reduce((s, i) => s + i.subtotal, 0);
+  const payable = items.filter(i => !INACTIVE.includes(i.status) && i.status !== WAIT);
+  const allOff = o.allInactive || (items.length && !payable.length);
   const paid = /已付款|已退款/.test(o.payStatus);
   // 訂單狀態摘要：各品項狀態一樣就顯示一個，不一樣就列出「狀態 ×件數」
   const counts = {};
@@ -628,6 +639,7 @@ function orderCard(o, payment, justReported, refundOk){
       ${o.tracking ? `<dt>出貨單號</dt><dd><b>${esc(o.tracking)}</b></dd>` : ''}
     </dl>
     ${off.length && !allOff ? `<div class="notice">⚠️ 有 ${off.length} 項商品未購入成功，該品項金額 ${money(offAmt)} 會退款給你（或依私訊討論的方式處理）。</div>` : ''}
+    ${wait.length ? `<div class="notice">⏳ 有 ${wait.length} 項商品等待後續通販，款項 ${money(waitAmt)} 保留中，有消息會在社群公告。</div>` : ''}
     <table class="summary items">${items.map(i => {
       const isOff = INACTIVE.includes(i.status);
       const showPay = isOff && /退款/.test(i.pay);
@@ -637,12 +649,17 @@ function orderCard(o, payment, justReported, refundOk){
         <td class="amt">${money(i.subtotal)}</td></tr>`;
     }).join('')}
       <tr class="total"><td>${TOTAL_NOTE}</td><td>${money(o.total)}</td></tr>
-      ${offAmt && !allOff ? `<tr class="refund"><td>未購入商品（退款）</td><td>− ${money(offAmt)}</td></tr>
-      <tr class="total"><td>實際購入商品金額</td><td>${money(o.total - offAmt)}</td></tr>` : ''}
+      ${offAmt && !allOff ? `<tr class="refund"><td>未購入商品（退款）</td><td>− ${money(offAmt)}</td></tr>` : ''}
+      ${waitAmt && !allOff ? `<tr class="refund waitrow"><td>等待通販（款項保留）</td><td>${money(waitAmt)}</td></tr>` : ''}
+      ${(offAmt || waitAmt) && !allOff ? `<tr class="total"><td>目前已購入商品金額</td><td>${money(o.total - offAmt - waitAmt)}</td></tr>` : ''}
     </table>
     <div class="sub">
       ${refundHtml(o, refundOk)}
-      ${allOff ? `<div class="empty">這筆訂單的商品都沒有購入成功${/退款/.test(items[0].pay) ? `，目前退款狀態：${badge(items[0].pay, true)}` : ''}，如已匯款會全額退款，有問題請私訊聯絡我 🙏</div>`
+      ${allOff ? (wait.length && !off.length
+          ? `<div class="empty">這筆訂單的商品目前都在等待後續通販，款項保留中，有消息會在社群公告 💙</div>`
+          : wait.length
+          ? `<div class="empty">這筆訂單目前沒有需要匯款的品項，未購入的品項會依你選擇的方式處理，有問題請私訊聯絡我 🙏</div>`
+          : `<div class="empty">這筆訂單的商品都沒有購入成功${/退款/.test(items[0].pay) ? `，目前退款狀態：${badge(items[0].pay, true)}` : ''}，如已匯款會全額退款，有問題請私訊聯絡我 🙏</div>`)
       : paid ? `<div class="msg ok">✅ 已確認收到款項，謝謝！</div>`
       : `<b>💰 匯款回報</b>
         ${payment ? `<div class="pay" style="margin-top:6px">匯款資訊：${esc(payment)}</div>` : ''}
@@ -651,7 +668,7 @@ function orderCard(o, payment, justReported, refundOk){
           <label>匯款帳號後五碼 <span class="req">*</span></label>
           <input name="last5" required inputmode="numeric" maxlength="5" pattern="\\d{5}" placeholder="5 位數字" value="${esc(o.last5)}">
           <div class="row2">
-            <div><label>匯款金額 <span class="req">*</span></label><input name="amount" type="number" min="1" required value="${o.reportAmount || (o.total - offAmt)}"></div>
+            <div><label>匯款金額 <span class="req">*</span></label><input name="amount" type="number" min="1" required value="${o.reportAmount || (o.total - offAmt - waitAmt)}"></div>
             <div><label>匯款日期 <span class="req">*</span></label><input name="date" type="date" required value="${today()}"></div>
           </div>
           <button class="btn primary" type="submit">${o.last5 ? '重新送出匯款回報' : '送出匯款回報'}</button>
