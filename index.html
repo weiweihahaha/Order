@@ -239,6 +239,9 @@ function demoApi(p){
   };
   if (p.action === 'report'){
     const o = mine.find(x => x.id === p.orderId);
+    const ok = i => !['購入失敗', '已取消', '等待通販'].includes(i.status);
+    const un = o.items.filter(i => ok(i) && (!i.pay || i.pay === '未付款'));
+    (un.length ? un : o.items.filter(i => ok(i) && i.pay === '已回報，待對帳')).forEach(i => i.pay = '已回報，待對帳');
     Object.assign(o, { payStatus: '已回報，待對帳', last5: p.last5, reportAmount: Number(p.amount), reportDate: p.date.replace(/-/g, '/') });
   }
   return { ok: true, orders: mine.map(view), payment: '（預覽模式）銀行代碼 000　帳號 12345678' };
@@ -621,7 +624,19 @@ function orderCard(o, payment, justReported, refundOk){
   const waitAmt = wait.reduce((s, i) => s + i.subtotal, 0);
   const payable = items.filter(i => !INACTIVE.includes(i.status) && i.status !== WAIT);
   const allOff = o.allInactive || (items.length && !payable.length);
-  const paid = /已付款|已退款/.test(o.payStatus);
+  // 付款進度（只看需要付款的品項）：補單的品項可以單獨匯款
+  const isUnpaid = i => !i.pay || i.pay === '未付款';
+  const unpaid = payable.filter(isUnpaid);
+  const checking = payable.filter(i => i.pay === '已回報，待對帳');
+  const unpaidAmt = unpaid.reduce((s, i) => s + i.subtotal, 0);
+  const checkAmt = checking.reduce((s, i) => s + i.subtotal, 0);
+  const partial = unpaid.length && unpaid.length < payable.length;
+  const payCounts = {};
+  payable.forEach(i => payCounts[i.pay] = (payCounts[i.pay] || 0) + 1);
+  const payKeys = Object.keys(payCounts);
+  const payMixed = payKeys.length > 1;
+  const payBadges = !payKeys.length ? badge(o.payStatus)
+    : payKeys.length === 1 ? badge(payKeys[0]) : payKeys.map(k => badge(`${k} ×${payCounts[k]}`)).join('');
   // 訂單狀態摘要：各品項狀態一樣就顯示一個，不一樣就列出「狀態 ×件數」
   const counts = {};
   items.forEach(i => counts[i.status] = (counts[i.status] || 0) + 1);
@@ -631,7 +646,7 @@ function orderCard(o, payment, justReported, refundOk){
   const mixed = keys.length > 1;
   return `<div class="ocard" id="o-${esc(o.id)}">
     <h3>📦 ${esc(o.id)}</h3>
-    <div style="margin-bottom:8px">${statusBadges}${badge(o.payStatus)}</div>
+    <div style="margin-bottom:8px">${statusBadges}${payBadges}</div>
     <dl class="kv">
       <dt>團名</dt><dd>${esc(o.group)}</dd>
       <dt>下單時間</dt><dd>${esc(o.time)}</dd>
@@ -642,7 +657,7 @@ function orderCard(o, payment, justReported, refundOk){
     ${wait.length ? `<div class="notice">⏳ 有 ${wait.length} 項商品等待後續通販，款項 ${money(waitAmt)} 保留中，有消息會在社群公告。</div>` : ''}
     <table class="summary items">${items.map(i => {
       const isOff = INACTIVE.includes(i.status);
-      const showPay = isOff && /退款/.test(i.pay);
+      const showPay = (isOff && /退款/.test(i.pay)) || (payMixed && payable.includes(i));
       return `<tr class="${isOff ? 'off' : ''}">
         <td><span class="nm">${esc(i.name)}${i.spec ? `（${esc(i.spec)}）` : ''} × ${i.qty}</span>
           ${mixed || isOff ? badge(i.status, true) : ''}${showPay ? ' ' + badge(i.pay, true) : ''}</td>
@@ -660,18 +675,22 @@ function orderCard(o, payment, justReported, refundOk){
           : wait.length
           ? `<div class="empty">這筆訂單目前沒有需要匯款的品項，未購入的品項會依你選擇的方式處理，有問題請私訊聯絡我 🙏</div>`
           : `<div class="empty">這筆訂單的商品都沒有購入成功${/退款/.test(items[0].pay) ? `，目前退款狀態：${badge(items[0].pay, true)}` : ''}，如已匯款會全額退款，有問題請私訊聯絡我 🙏</div>`)
-      : paid ? `<div class="msg ok">✅ 已確認收到款項，謝謝！</div>`
+      : !unpaid.length && !checking.length ? `<div class="msg ok">✅ 已確認收到款項，謝謝！</div>`
       : `<b>💰 匯款回報</b>
+        ${unpaid.length ? `<div class="notice">${partial
+            ? `🧾 有 ${unpaid.length} 項商品（補單）尚未匯款，請匯款 <b>${money(unpaidAmt)}</b> 後回報；已付款的品項不受影響。`
+            : `請匯款 <b>${money(unpaidAmt)}</b> 後回報。`}</div>` : ''}
         ${payment ? `<div class="pay" style="margin-top:6px">匯款資訊：${esc(payment)}</div>` : ''}
-        ${o.last5 ? `<div class="empty">已回報：後五碼 <b>${esc(o.last5)}</b>${o.reportAmount ? `，金額 ${money(o.reportAmount)}` : ''}${o.reportDate ? `，${esc(o.reportDate)} 匯款` : ''}。對帳確認後狀態會變成「已付款」；填錯可以重新送出。</div>` : ''}
+        ${!unpaid.length && o.last5 ? `<div class="empty">已回報：後五碼 <b>${esc(o.last5)}</b>${o.reportAmount ? `，金額 ${money(o.reportAmount)}` : ''}${o.reportDate ? `，${esc(o.reportDate)} 匯款` : ''}。對帳確認後狀態會變成「已付款」；填錯可以重新送出。</div>` : ''}
+        ${unpaid.length && checking.length ? `<div class="empty">另有 ${checking.length} 項商品已回報匯款，正在對帳中。</div>` : ''}
         <form class="reportForm" data-id="${esc(o.id)}" novalidate>
           <label>匯款帳號後五碼 <span class="req">*</span></label>
-          <input name="last5" required inputmode="numeric" maxlength="5" pattern="\\d{5}" placeholder="5 位數字" value="${esc(o.last5)}">
+          <input name="last5" required inputmode="numeric" maxlength="5" pattern="\\d{5}" placeholder="5 位數字" value="${unpaid.length ? '' : esc(o.last5)}">
           <div class="row2">
-            <div><label>匯款金額 <span class="req">*</span></label><input name="amount" type="number" min="1" required value="${o.reportAmount || (o.total - offAmt - waitAmt)}"></div>
+            <div><label>匯款金額 <span class="req">*</span></label><input name="amount" type="number" min="1" required value="${unpaid.length ? unpaidAmt : (o.reportAmount || checkAmt)}"></div>
             <div><label>匯款日期 <span class="req">*</span></label><input name="date" type="date" required value="${today()}"></div>
           </div>
-          <button class="btn primary" type="submit">${o.last5 ? '重新送出匯款回報' : '送出匯款回報'}</button>
+          <button class="btn primary" type="submit">${unpaid.length ? (partial ? '送出補單匯款回報' : '送出匯款回報') : '重新送出匯款回報'}</button>
         </form>`}
       <div class="msg ${justReported ? 'ok' : ''}">${justReported ? '✅ 匯款回報成功！對帳後會把狀態改成「已付款」，謝謝你 💙' : ''}</div>
     </div>
